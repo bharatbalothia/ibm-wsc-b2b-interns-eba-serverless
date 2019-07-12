@@ -1,0 +1,65 @@
+version: 6
+meta:
+  name: CDS STATS
+concepts:
+  - name: 'cds:Status'
+  - name: 'cds:TradingPartners'
+    ontology:
+      subClassOf: ':Showable'
+      isListOf: 'cds:TradingPartner'
+  - name: 'cds:Customer'
+    ontology:
+      subClassOf: ':Showable'
+    attributes:
+      ':Name': Customer Name
+  - name: 'cds:TradingPartner'
+    ontology:
+      subClassOf: ':Showable'
+      isSpellAs: trading partner
+    attributes:
+      'cds:Status': status
+      ':Name': Name
+  - name: ':Name'
+  - name: ':Showable'
+patterns: "<!--\n\tEnter your NL patterns in this markdown panel. \n\tA pattern consists of natural language text annotated with concepts tags. \n\tFor example,\n\t 'tell me a [joke](demo:Joke)' annotates the demo:Joke concept appropriately\n\t 'show me the [weather](demo:Weather)' annotates the demo:Weather concept appropriately. \n\tWe even support regular expression annotations.\n\t For example, '[`REGEX [0-9]{5}`](emo:ZIPCode)' provides a zip code annotation.\n-->\n\n- show me all [customers](cds:Customer).\n- show me all [trading partners](cds:TradingPartners) for [customer](cds:Customer) abc.\n- what is the [status](cds:Status) of [trading partner](cds:TradingPartner) xyz of [customer](cds:Customer) abc."
+ontobot: ''
+actions:
+  - name: 'cds:GetAllCustomers'
+    signature: 'cds:Customer -> data cds:Customer'
+    kind: 'nodejs:8'
+    code: |-
+      const {Result} = require('eba')
+      const nano           = require('./connect.js');
+      //const {getAllTransactions} = require('./amerisource-bergen.js')
+
+      module.exports.main = async (params) => {
+        
+         async function getAllCustomer(){ 
+          var dbpartners = nano.conct.db.use('cdsdata')
+          var i;
+          var temp = []
+          const params1   = {include_docs: true}
+          var myObjStr = await dbpartners.list(params1).then((body)=> {
+            return body;
+          });
+          return new Promise(function(resolve, reject) {
+          
+          for(i=0;i<myObjStr.rows.length;i++)
+          {
+            temp[i]= myObjStr.rows[i].doc['Customer Name'];
+          }
+          console.log(temp)
+          //return temp;
+          resolve(temp)
+          })
+        }
+        const customers = await getAllCustomer()
+        
+        return new Result()
+          .setData('cds:Customer', customers)
+      }
+statics:
+  - name: connect.js
+    mime: text/javascript
+    text: "const conct = require('nano')('https://e06b4c3d-78c6-4f21-8bb3-297e658dc8b1-bluemix:4299f4e82a5b36181a52abd82d9d74bd5bf3f77a350d5db2daf9b30882df8cb8@e06b4c3d-78c6-4f21-8bb3-297e658dc8b1-bluemix.cloudantnosqldb.appdomain.cloud');\r\nmodule.exports = {conct};\r\n"
+    backend: true

@@ -1,0 +1,71 @@
+version: 6
+meta:
+  name: WalmartAgent
+  description: |-
+    - [show me all trending products](ask:show%20me%20all%20trending%20products)
+    - [show me product named "watch"](ask:show%20me%20product%20named%20"watch")
+secrets:
+  - name: apiKey
+concepts:
+  - name: 'wmt:Products'
+    ontology:
+      isListOf: 'wmt:Product'
+      subClassOf: ':Showable'
+      isSpellAs: products|*
+  - name: 'wmt:Product'
+    ontology:
+      subClassOf: ':Showable'
+      isSpellAs: product
+    attributes:
+      'wmt:Description': shortDescription
+      'wmt:SalesPrice': salesPrice
+      'wmt:MSRP': msrp
+      ':Name': name
+  - name: ':Showable'
+  - name: ':Name'
+  - name: 'wmt:MSRP'
+    ontology:
+      subClassOf:
+        - ':Attribute'
+        - ':NumAttribute'
+      isSpellAs: msrp
+  - name: 'wmt:TrendingNow'
+  - name: 'wmt:Trending'
+    ontology:
+      subClassOf: ':Showable'
+  - name: 'wmt:SalesPrice'
+    ontology:
+      subClassOf:
+        - ':Attribute'
+        - ':NumAttribute'
+      isSpellAs: sales price
+  - name: 'wmt:Description'
+    ontology:
+      subClassOf:
+        - ':Attribute'
+        - ':NumAttribute'
+      isSpellAs: description
+  - name: ':UPC'
+    ontology:
+      isSpellAs: UPC
+  - name: ':Attribute'
+  - name: ':NumAttribute'
+  - name: ':what'
+  - name: ':WithName'
+  - name: ':UserString'
+patterns: "<!--\n\tEnter your NL patterns in this markdown panel. \n\tA pattern consists of natural language text annotated with concepts tags. \n\tFor example,\n\t 'tell me a [joke](demo:Joke)' annotates the demo:Joke concept appropriately\n\t 'show me the [weather](demo:Weather)' annotates the demo:Weather concept appropriately. \n\tWe even support regular expression annotations.\n\t For example, '[`REGEX [0-9]{5}`](emo:ZIPCode)' provides a zip code annotation.\n-->\n\n- show me [trending](wmt:Trending) [products](wmt:Products)\n- show [popular](wmt:Trending) products\n- what is the [description](wmt:Description), [price](wmt:SalesPrice), and [msrp](wmt:MSRP) for this [product](wmt:Product)?\n- [what's](:what) [trending now](wmt:TrendingNow)\n- show me the product name for [upc](:UPC) 123"
+ontobot: ''
+actions:
+  - name: 'wmt:SearchProductByName'
+    signature: 'wmt:Product (optional :WithName (data :UserString)) -> data wmt:Product'
+    kind: 'nodejs:8'
+    code: "const request = require('request-promise-native')\r\nconst eba = require('eba')\r\n\r\nmodule.exports.main = function (params) {\r\n  let h = new eba.Params(params)\r\n  let nameString = h.get(\":UserString\")\r\n  \r\n  let options = {\r\n    method: 'GET',\r\n    uri: 'https://us-south.functions.cloud.ibm.com/api/v1/web/rajrobin%40in.ibm.com_dev/default/Product_walmart.json',\r\n    headers: {\r\n        'Content-Type': 'Application/json'\r\n    }\r\n}\r\n\r\n  return request(options)\r\n    .then(JSON.parse)\r\n    .then(function(res){ \r\n      data = null\r\n      res.data.forEach((item) => {\r\n        console.log(item.name === nameString);\r\n        if (item.name === nameString){\r\n          data = item\r\n        }\r\n      })\r\n      if(data){\r\n      return new eba.Result().setData('wmt:Product', data);\r\n      }\r\n      else{\r\n        return  { error: \"Product Not Found\" }\r\n      }\r\n    })\r\n    .catch((error) => {\r\n      return { error: `Walmart API error: ${error}` }\r\n    })\r\n}\r\n"
+  - name: 'wmt:GetTrendingProducts'
+    signature: 'wmt:Products (wmt:Trending) -> data wmt:Products'
+    kind: 'nodejs:8'
+    code: "const request = require('request-promise-native')\r\nconst https = require('https');\r\nconst {Result} = require('eba');\r\n\r\nlet options = {\r\n    method: 'GET',\r\n    uri: 'https://us-south.functions.cloud.ibm.com/api/v1/web/rajrobin%40in.ibm.com_dev/default/Product_walmart.json',\r\n    headers: {\r\n        'Content-Type': 'Application/json'\r\n    }\r\n}\r\n\r\n\r\nconst main = () => {\r\n  return request(options)\r\n    .then(JSON.parse)\r\n    .then(function(res){ \r\n      console.log(res);\r\n      return new Result().setData('wmt:Products', res.data);\r\n    })\r\n    .catch((error) => {\r\n      return { error: `Walmart API error: ${error}` }\r\n    })\r\n}\r\n\r\nmodule.exports = {main}"
+rules:
+  - name: ''
+    signature: 'wmt:TrendingNow -> wmt:Trending (wmt:Products)'
+experience: >-
+  eyJjb250ZW50SWQiOiJjMzMwZmQ0YmNhNDdiMGExOTBmMjBiNDYzMDZkNTE4NjFjNjdmMjU1IiwiZmVlZGJhY2siOnt9LCJsYXN0VXBkYXRlZCI6MTU1NzkwMjk4My4yOTI5ODY5LCJwYXR0ZXJucyI6W10sInJld3JpdGVSdWxlcyI6W10sInNwZWxsaW5nTWFwIjp7IndtdDpUcmVuZGluZyI6W1sidHJlbmRpbmciLDAuNjY2NjY2NjY2NjY2NjY2Nl0sWyJwb3B1bGFyIiwwLjMzMzMzMzMzMzMzMzMzMzNdXX0sInZlcnNpb24iOiIxLjEuMCJ9

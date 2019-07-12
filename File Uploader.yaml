@@ -1,0 +1,125 @@
+version: 6
+meta:
+  name: File Uploader
+  description: >-
+    This agent provides an example of uploading .doc file using EBA
+
+
+    * [Watson, upload my file](ask:Watson%2C%20upload%20my%20file)
+
+
+    wait for upload to complete...
+
+
+    * [what is the name of this
+    file?](ask:what%20is%20the%20name%20of%20this%20file%3F)
+concepts:
+  - name: 'ns:ActionUpload'
+    ontology:
+      subClassOf: ':Message'
+  - name: ':Message'
+  - name: 'ns:UploadForm'
+    ontology:
+      subClassOf: ':Showable'
+  - name: 'ns:File'
+    ontology:
+      subClassOf: ':Showable'
+    attributes:
+      ':Name': fileName
+  - name: ':Own'
+  - name: ':Showable'
+  - name: 'ns:FileUploaded'
+    ontology:
+      subClassOf: ':Message'
+  - name: ':Name'
+patterns: "<!--\n\tEnter your NL patterns in this markdown panel. \n\tA pattern consists of natural language text annotated with concepts tags. \n\tFor example,\n\t 'tell me a [joke](demo:Joke)' annotates the demo:Joke concept appropriately\n\t 'show me the [weather](demo:Weather)' annotates the demo:Weather concept appropriately. \n\tWe even support regular expression annotations.\n\t For example, '[`REGEX [0-9]{5}`](demo:ZIPCode)' provides a zip code annotation.\n-->\n- [upload](ns:ActionUpload) my [file](ns:File)"
+ontobot: ''
+actions:
+  - name: 'ns:FileUploaded'
+    signature: 'ns:FileUploaded (data ns:File) -> data ns:FileUploaded'
+    kind: 'nodejs:10'
+    code: |-
+      const {Result, Params} = require('eba')
+
+      module.exports.main = async (params) => {
+        const p = new Params(params)
+        const file = p.get('ns:File')
+        return new Result()
+          .setData('ns:FileUploaded', 'I finished uploading file named ' + file.fileName)
+      }
+  - name: 'ns:FileUpload'
+    signature: 'ns:ActionUpload (optional :Own, ns:File) -> data ns:ActionUpload'
+    kind: 'nodejs:10'
+    code: |-
+      const {Result} = require('eba')
+
+      module.exports.main = async (params) => {
+        return new Result()
+          .setData('ns:ActionUpload', {
+            text: `Submit your file using the form below.`,
+            name: 'ns:UploadForm',
+            data: []
+          })
+      }
+endpoints:
+  - name: '@react'
+    kind: 'nodejs:8'
+    code: |-
+      const _ = require('lodash')
+
+      const placeFileIntoContext = (file) => {
+        return {
+          output: {
+            type: 'concept',
+            name: 'ns:FileUploaded',
+            children: [{
+              type: 'concept',
+              name: 'ns:File', 
+              children: [{
+                type: 'data',
+                name: 'ns:File',
+                data: file
+              }]
+            }]
+          }
+        }
+      }
+
+      module.exports.main = params => {
+        const repr = params.input.repr
+        console.log("file", repr.data.file)
+        return (repr.data.file)
+          ? placeFileIntoContext(repr.data.file)
+          : {}
+      }
+statics:
+  - name: viz.coffee
+    mime: application/vnd.coffeescript
+    text: |
+      File.prototype.toBase64 = () ->
+        new Promise (resolve, reject) =>
+          reader = new FileReader()
+          reader.onloadend = (e) =>
+            meta = 
+              fileName: @name
+              result: e.target.result
+              error: e.target.error
+            resolve(meta)
+          reader.readAsDataURL(@)
+
+      class ns_UploadFormData extends PureComponent
+        constructor: (props) ->
+          super props
+        
+        handleFileChange: (e) ->
+          [file] = e.target.files
+          file.toBase64().then (data) =>
+            console.log "Data", data
+            bridge.trigger "send", JSON.stringify(file: data)
+
+        render: ->
+          R.input
+            type: "file"
+            accept: ".doc,.docx"
+            onChange: @handleFileChange
+    frontend: true

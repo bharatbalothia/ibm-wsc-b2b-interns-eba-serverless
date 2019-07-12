@@ -1,0 +1,11 @@
+#
+import sys
+import json
+
+def main(dict):
+    dis =[{'name': 'watch','salesPrice': 1000,'msrp':"sometext hsadfjfla",'shortDescription': "some more text"},
+    {'name': 'gold','salesPrice': 10000,'msrp':"sometext ",'shortDescription': "some more text"}]
+    
+    result = {'data':dis}
+    
+    return result
